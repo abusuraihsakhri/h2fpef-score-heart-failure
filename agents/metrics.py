@@ -1,7 +1,6 @@
 """
 Prometheus Operational Metrics Exporter for h2fpef-score-heart-failure.
 """
-import time
 from typing import Dict, Any
 
 class SystemMetricsCollector:

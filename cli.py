@@ -16,6 +16,10 @@ from h2fpef_score import (
     INTERPRETATION,
 )
 
+from agents.base import AuditLogger, PHIGuard, SecurityException
+from agents.models import SystemTaskPayload, UrgencyLevel
+from agents.supervisor import SystemSupervisor
+
 
 def cmd_calculate(args):
     """Calculate H2FPEF score."""
@@ -117,6 +121,71 @@ def cmd_reference(args):
     return 0
 
 
+def cmd_audit(args):
+    """Run distributed component audit task."""
+    supervisor = SystemSupervisor(model_provider="mock")
+    payload = SystemTaskPayload(
+        task_id=args.task_id,
+        target_identifier=args.target_identifier,
+        primary_metric=args.primary_metric,
+        secondary_metric=args.secondary_metric,
+        status_descriptor=args.status_descriptor,
+        is_critical_flag=args.is_critical_flag,
+    )
+    dossier = supervisor.process_task(payload)
+
+    print("=" * 60)
+    print("  DISTRIBUTED COMPONENT AUDIT")
+    print("=" * 60)
+    print(f"  Dossier ID:      {dossier.dossier_id}")
+    print(f"  Task ID:         {dossier.task_id}")
+    print(f"  Target:          {dossier.target_identifier}")
+    print(f"  Overall Urgency: {dossier.overall_urgency.value}")
+    print(f"  Integrity:       {dossier.integrity_status.value}")
+    print(f"  Total Alerts:    {dossier.total_alerts}")
+    print(f"  Audit Hash:      {dossier.audit_hash}")
+
+    if dossier.alerts:
+        print(f"\n  ALERTS:")
+        for alert in dossier.alerts:
+            print(f"    [{alert.urgency.value}] {alert.summary}")
+            print(f"      Worker: {alert.origin_worker}")
+            print(f"      Action: {alert.actionable_remediation}")
+
+    if args.json:
+        print("\n" + json.dumps(dossier.to_dict(), indent=2))
+    return 0
+
+
+def cmd_chat(args):
+    """Query the supervisory chat assistant."""
+    supervisor = SystemSupervisor(model_provider="mock")
+    query = " ".join(args.query)
+    try:
+        response = supervisor.query_supervisory_chat(query)
+        print(f"Response: {response}")
+    except SecurityException as e:
+        print(f"Security Error: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_verify_audit(args):
+    """Verify HMAC audit trail integrity."""
+    verified = AuditLogger.verify_integrity()
+    trail = AuditLogger.get_trail()
+
+    print("=" * 60)
+    print("  HMAC AUDIT TRAIL VERIFICATION")
+    print("=" * 60)
+    print(f"  Total Audit Blocks: {len(trail)}")
+    print(f"  Integrity Verified: {'PASS' if verified else 'FAIL'}")
+
+    if args.json:
+        print("\n" + json.dumps({"verified": verified, "trail": trail}, indent=2))
+    return 0 if verified else 1
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="h2fpef",
@@ -146,12 +215,31 @@ def main(argv=None):
     # Reference
     subparsers.add_parser("reference", help="Show HFA-PEFF algorithm")
 
+    # Distributed component audit
+    p_audit = subparsers.add_parser("audit", help="Run distributed component audit")
+    p_audit.add_argument("--task-id", required=True, help="Task identifier")
+    p_audit.add_argument("--target-identifier", default="KEY-01", help="Target identifier")
+    p_audit.add_argument("--primary-metric", type=float, default=10.0, help="Primary metric value")
+    p_audit.add_argument("--secondary-metric", type=float, default=2.0, help="Secondary metric value")
+    p_audit.add_argument("--status-descriptor", default="NOMINAL", help="Status descriptor")
+    p_audit.add_argument("--is-critical-flag", action="store_true", help="Critical flag")
+
+    # Supervisory chat
+    p_chat = subparsers.add_parser("chat", help="Query supervisory chat assistant")
+    p_chat.add_argument("query", nargs="+", help="Query text")
+
+    # Verify audit trail
+    subparsers.add_parser("verify-audit", help="Verify HMAC audit trail integrity")
+
     args = parser.parse_args(argv)
 
     commands = {
         "calculate": cmd_calculate,
         "quick": cmd_quick,
         "reference": cmd_reference,
+        "audit": cmd_audit,
+        "chat": cmd_chat,
+        "verify-audit": cmd_verify_audit,
     }
 
     return commands[args.command](args)

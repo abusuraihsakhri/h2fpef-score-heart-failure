@@ -23,8 +23,37 @@ Author: Medical Calculator Project
 License: MIT
 """
 
-import math
 from typing import Dict, Any, Optional
+
+
+# =============================================================================
+# INPUT VALIDATION
+# =============================================================================
+
+# Physiologically plausible ranges for clinical parameters
+VALID_RANGES = {
+    "bmi": (5.0, 120.0),           # kg/m^2
+    "num_antihypertensives": (0, 20),
+    "pasp_mmhg": (0.0, 200.0),     # mmHg
+    "age": (0.0, 150.0),           # years
+    "e_e_prime": (0.0, 50.0),      # ratio
+}
+
+
+def _validate_numeric(value: Optional[float], name: str) -> None:
+    """Validate a numeric clinical parameter is within physiologically plausible range."""
+    if value is None:
+        return
+    if not isinstance(value, (int, float)):
+        raise TypeError(f"{name} must be a number, got {type(value).__name__}")
+    if value != value:  # NaN check
+        raise ValueError(f"{name} must not be NaN")
+    if value == float('inf') or value == float('-inf'):
+        raise ValueError(f"{name} must be finite")
+    if name in VALID_RANGES:
+        lo, hi = VALID_RANGES[name]
+        if not (lo <= value <= hi):
+            raise ValueError(f"{name} must be between {lo} and {hi}, got {value}")
 
 
 # =============================================================================
@@ -149,10 +178,21 @@ def calculate_h2fpef_score(
     
     Returns:
         Dictionary with H2FPEF score and interpretation
+
+    Raises:
+        TypeError: If parameters are not numeric.
+        ValueError: If parameters are outside physiologically plausible ranges.
     """
+    # Validate inputs
+    _validate_numeric(bmi, "bmi")
+    _validate_numeric(num_antihypertensives, "num_antihypertensives")
+    _validate_numeric(pasp_mmhg, "pasp_mmhg")
+    _validate_numeric(age, "age")
+    _validate_numeric(e_e_prime, "e_e_prime")
+
     score = 0
     components = {}
-    
+
     # H - Heavy (BMI > 30)
     is_heavy = heavy if heavy is not None else (bmi is not None and bmi > 30)
     if is_heavy:

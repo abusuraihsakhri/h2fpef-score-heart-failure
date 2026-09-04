@@ -7,12 +7,16 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+import pytest
+
 from h2fpef_score import (
     calculate_h2fpef_score,
     calculate_h2fpef_from_bools,
     get_hfa_peff_algorithm,
     SCORE_COMPONENTS,
     INTERPRETATION,
+    _validate_numeric,
+    VALID_RANGES,
 )
 
 
@@ -310,3 +314,73 @@ def test_cli_calculate_minimal():
     from cli import main
     rc = main(["calculate", "--age", "45"])
     assert rc == 0
+
+
+# =============================================================================
+# Input Validation Tests
+# =============================================================================
+
+def test_validate_numeric_none_ok():
+    """None values should pass validation (optional parameters)."""
+    _validate_numeric(None, "bmi")
+
+
+def test_validate_numeric_valid_values():
+    """Valid numeric values should pass."""
+    _validate_numeric(25.0, "bmi")
+    _validate_numeric(0, "num_antihypertensives")
+    _validate_numeric(30.0, "pasp_mmhg")
+    _validate_numeric(45.0, "age")
+    _validate_numeric(8.0, "e_e_prime")
+
+
+def test_validate_numeric_rejects_nan():
+    """NaN should be rejected."""
+    with pytest.raises(ValueError, match="NaN"):
+        _validate_numeric(float('nan'), "bmi")
+
+
+def test_validate_numeric_rejects_infinity():
+    """Infinity should be rejected."""
+    with pytest.raises(ValueError, match="finite"):
+        _validate_numeric(float('inf'), "bmi")
+    with pytest.raises(ValueError, match="finite"):
+        _validate_numeric(float('-inf'), "age")
+
+
+def test_validate_numeric_rejects_out_of_range():
+    """Values outside physiologically plausible ranges should be rejected."""
+    with pytest.raises(ValueError, match="bmi"):
+        _validate_numeric(200.0, "bmi")
+    with pytest.raises(ValueError, match="age"):
+        _validate_numeric(200.0, "age")
+
+
+def test_validate_numeric_rejects_non_numeric():
+    """Non-numeric types should be rejected."""
+    with pytest.raises(TypeError):
+        _validate_numeric("not a number", "bmi")
+
+
+def test_calculate_rejects_invalid_bmi():
+    """calculate_h2fpef_score should reject invalid BMI."""
+    with pytest.raises(ValueError):
+        calculate_h2fpef_score(bmi=200.0)
+
+
+def test_calculate_rejects_invalid_age():
+    """calculate_h2fpef_score should reject invalid age."""
+    with pytest.raises(ValueError):
+        calculate_h2fpef_score(age=-5.0)
+
+
+def test_calculate_rejects_nan_input():
+    """calculate_h2fpef_score should reject NaN inputs."""
+    with pytest.raises(ValueError):
+        calculate_h2fpef_score(bmi=float('nan'))
+
+
+def test_valid_ranges_defined():
+    """All expected parameters should have valid ranges defined."""
+    expected_params = {"bmi", "num_antihypertensives", "pasp_mmhg", "age", "e_e_prime"}
+    assert set(VALID_RANGES.keys()) == expected_params

@@ -1,7 +1,7 @@
-# H2fpef Score Heart Failure
+# H2FPEF Score Heart Failure
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+> **Domain:** Clinical Decision Support & Biomedical Computing
+> **Reference Guidelines & Standards:** Standard Clinical Formulations & ISO/IEC Quality Frameworks
 
 <div align="center">
 
@@ -78,6 +78,7 @@ Args:
 
 Returns:
     Dictionary with H2FPEF score and interpretation
+
 - **`calculate_h2fpef_from_bools()`**: Simplified H2FPEF calculation from boolean flags.
 
 Args:
@@ -90,6 +91,7 @@ Args:
 
 Returns:
     Dictionary with H2FPEF score and interpretation
+
 - **`get_hfa_peff_algorithm()`**: Return the HFA-PEFF diagnostic algorithm as reference.
 
 The HFA-PEFF score is an alternative comprehensive diagnostic algorithm
@@ -106,45 +108,69 @@ Returns:
 ## 📐 Mathematical Formulation & Logic
 
 ```text
-  Calculate the H2FPEF score for HFpEF probability.
-  score = 0
-  return calculate_h2fpef_score(
+Calculate the H2FPEF score for HFpEF probability.
+score = 0
+if bmi > 30: score += 2
+if num_antihypertensives >= 2: score += 1
+if af_present: score += 3
+if pasp > 35: score += 1
+if age > 60: score += 1
+if e_e_prime > 9: score += 1
 ```
 
 ---
 
 ## 💻 CLI Quickstart & Usage
 
-### 1. Guided Interactive Mode
+### Installation
+
 ```bash
-python cli.py
+pip install fastapi uvicorn pydantic pytest
 ```
 
-### 2. Direct Parameterized Evaluation
+### 1. Direct Parameterized Evaluation
 ```bash
-python cli.py --json <value> --bmi <value> --antihypertensives <value> --af <value>
+python cli.py calculate --bmi 32 --antihypertensives 2 --af --pasp 40 --age 65 --e-e-prime 12
+```
+
+### 2. Quick Boolean Mode
+```bash
+python cli.py quick --heavy --hypertensive --af --elder
+```
+
+### 3. View HFA-PEFF Reference Algorithm
+```bash
+python cli.py reference
+```
+
+### 4. Run Distributed Component Audit
+```bash
+python cli.py audit --task-id TASK-001 --primary-metric 15.0
+```
+
+### 5. Query Supervisory Chat Assistant
+```bash
+python cli.py chat "Explain specifications"
+```
+
+### 6. Verify Audit Trail Integrity
+```bash
+python cli.py verify-audit
 ```
 
 ### Parameter Reference
-- `--json`: Specifies input measurement or parameter value.
-- `--bmi`: Specifies input measurement or parameter value.
-- `--antihypertensives`: Specifies input measurement or parameter value.
-- `--af`: Specifies input measurement or parameter value.
-- `--pasp`: Specifies input measurement or parameter value.
-- `--age`: Specifies input measurement or parameter value.
-- `--e-e-prime`: Specifies input measurement or parameter value.
-- `--heavy`: Specifies input measurement or parameter value.
-- `--hypertensive`: Specifies input measurement or parameter value.
-- `--pulmonary-pressure`: Specifies input measurement or parameter value.
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `Patient_ID` | Parameter / observation metric | Required |
-| `v1` | Parameter / observation metric | Required |
-| `v2` | Parameter / observation metric | Required |
-| `v3` | Parameter / observation metric | Required |
+- `--bmi`: Body mass index in kg/m^2
+- `--antihypertensives`: Number of antihypertensive medications
+- `--af`: Atrial fibrillation present
+- `--pasp`: Pulmonary artery systolic pressure in mmHg
+- `--age`: Age in years
+- `--e-e-prime`: E/e' ratio from echocardiography
+- `--heavy`: BMI > 30 (boolean mode)
+- `--hypertensive`: >= 2 antihypertensives (boolean mode)
+- `--pulmonary-pressure`: PASP > 35 (boolean mode)
+- `--elder`: Age > 60 (boolean mode)
+- `--filling-pressure`: E/e' > 9 (boolean mode)
+- `--json`: Output results as JSON
 
 ---
 
@@ -155,6 +181,18 @@ python cli.py --json <value> --bmi <value> --antihypertensives <value> --af <val
 * **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
 * **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
 * **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+
+### Security Configuration
+
+Set the `AUDIT_SECRET_KEY` environment variable for persistent audit trail integrity:
+
+```bash
+# Linux/macOS
+export AUDIT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+
+# Windows PowerShell
+$env:AUDIT_SECRET_KEY = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 64 | % {[char]$_})
+```
 
 ---
 
@@ -169,7 +207,7 @@ pytest -v
 Execute high-throughput batch simulation benchmarks:
 
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+python simulator.py 1000
 ```
 
 ---
@@ -180,3 +218,43 @@ python simulator.py --tasks 1000 --concurrency 8
 docker build -t h2fpef-score-heart-failure .
 docker run -p 8000:8000 h2fpef-score-heart-failure
 ```
+
+Or using Docker Compose:
+
+```bash
+AUDIT_SECRET_KEY=your-secret-key docker-compose up
+```
+
+---
+
+## 📁 Project Structure
+
+```
+h2fpef-score-heart-failure/
+├── h2fpef_score.py          # Core H2FPEF calculation logic
+├── cli.py                    # Command-line interface
+├── enrichment.py             # Enrichment feature modules
+├── simulator.py              # High-throughput simulation
+├── test_h2fpef_score.py      # Core calculation tests
+├── agents/                   # Enterprise agent framework
+│   ├── base.py              # Security, PHI guard, audit trail
+│   ├── models.py            # Pydantic data models
+│   ├── supervisor.py        # Multi-agent orchestration
+│   ├── workers.py           # Specialized worker agents
+│   ├── api.py               # FastAPI REST endpoints
+│   ├── metrics.py           # Prometheus metrics
+│   ├── learning.py          # Bayesian calibration engine
+│   ├── llm_factory.py       # LLM provider factory
+│   └── streamer.py          # WebSocket telemetry
+├── tests/                    # Additional test suites
+├── web/                      # Web operations console
+├── Dockerfile               # Container definition
+├── docker-compose.yml       # Multi-service orchestration
+└── .github/workflows/       # CI/CD pipelines
+```
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
