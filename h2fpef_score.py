@@ -359,7 +359,7 @@ def get_hfa_peff_algorithm() -> Dict[str, Any]:
     """
     return {
         "name": "HFA-PEFF Diagnostic Algorithm",
-        "description": "European Society of Cardiology HFA-PEFF algorithm for HFpEF diagnosis",
+        "description": "Abbreviated HFA-PEFF reference; not a complete diagnostic implementation",
         "reference": "Pieske B et al. Eur J Heart Fail. 2019;21(10):1169-1186",
         "steps": {
             "step_1": {
