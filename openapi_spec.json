@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "H2Fpef Score Heart Failure API",
-    "description": "Enterprise Distributed Component Platform (Clinical & Cryptographic AI) adhering to CAP / CLSI / NIST Standards.",
+    "description": "H2FPEF score API and separate optional generic auditing endpoints. Not a medical device.",
     "version": "3.0.0-ENTERPRISE",
     "contact": {
       "name": "Dr. Abu Suraih Sakhri",
@@ -25,7 +25,7 @@
         "summary": "Prometheus operational metrics",
         "responses": {
           "200": {
-            "description": "Prometheus text metrics"
+            "description": "JSON operational counters; not Prometheus text"
           }
         }
       }
@@ -76,7 +76,7 @@
     },
     "/api/chat": {
       "post": {
-        "summary": "Air-gapped supervisory conversational assistant",
+        "summary": "Return deterministic test-provider mock response",
         "requestBody": {
           "content": {
             "application/json": {
@@ -107,6 +107,59 @@
         "responses": {
           "200": {
             "description": "Cryptographic audit trail"
+          }
+        }
+      }
+    },
+    "/api/score": {
+      "post": {
+        "summary": "Calculate the six-component H2FPEF point score",
+        "description": "Requires all six clinical measurements; returns point breakdown and score completeness information.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "bmi",
+                  "num_antihypertensives",
+                  "af_present",
+                  "pasp_mmhg",
+                  "age",
+                  "e_e_prime"
+                ],
+                "properties": {
+                  "bmi": {
+                    "type": "number"
+                  },
+                  "num_antihypertensives": {
+                    "type": "integer"
+                  },
+                  "af_present": {
+                    "type": "boolean"
+                  },
+                  "pasp_mmhg": {
+                    "type": "number"
+                  },
+                  "age": {
+                    "type": "number"
+                  },
+                  "e_e_prime": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "H2FPEF score and component breakdown"
+          },
+          "422": {
+            "description": "Invalid or incomplete clinical measurements"
           }
         }
       }
