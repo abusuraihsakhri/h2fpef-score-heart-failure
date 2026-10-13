@@ -58,7 +58,7 @@ For container use:
 
 ```bash
 docker build -t h2fpef-score .
-docker run --rm -p 8000:8000 h2fpef-score
+docker run --rm -p 127.0.0.1:8000:8000 h2fpef-score
 # Or docker compose up --build
 ```
 
