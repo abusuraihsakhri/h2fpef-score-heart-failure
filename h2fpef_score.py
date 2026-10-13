@@ -44,12 +44,14 @@ def _validate_numeric(value: Optional[float], name: str) -> None:
     """Validate a numeric clinical parameter is within physiologically plausible range."""
     if value is None:
         return
-    if not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be a number, got {type(value).__name__}")
     if value != value:  # NaN check
         raise ValueError(f"{name} must not be NaN")
     if value == float('inf') or value == float('-inf'):
         raise ValueError(f"{name} must be finite")
+    if name == "num_antihypertensives" and not isinstance(value, int):
+        raise TypeError("num_antihypertensives must be a whole number")
     if name in VALID_RANGES:
         lo, hi = VALID_RANGES[name]
         if not (lo <= value <= hi):
@@ -106,7 +108,7 @@ INTERPRETATION = {
         "probability": 0.09,
         "probability_percent": 9,
         "label": "Low probability of HFpEF",
-        "description": "Low probability HFpEF (9%). Consider alternative diagnoses.",
+        "description": "Low likelihood of HFpEF in the original diagnostic context; the displayed percentage is a category-level illustrative figure.",
         "recommendation": "Consider other causes of dyspnea. HFpEF unlikely.",
     },
     "intermediate": {
@@ -114,16 +116,16 @@ INTERPRETATION = {
         "probability": 0.53,
         "probability_percent": 53,
         "label": "Intermediate probability of HFpEF",
-        "description": "Intermediate probability HFpEF (53%). Further evaluation recommended.",
-        "recommendation": "Consider invasive hemodynamic testing with exercise to confirm.",
+        "description": "Indeterminate likelihood; additional testing may be warranted. The displayed percentage is not an individual prediction.",
+        "recommendation": "Consider additional echocardiographic or exercise hemodynamic evaluation as clinically indicated.",
     },
     "high": {
         "range": (6, 9),
         "probability": 0.91,
         "probability_percent": 91,
         "label": "High probability of HFpEF",
-        "description": "High probability HFpEF (91%). Diagnosis is very likely.",
-        "recommendation": "Initiate HFpEF management. Consider guideline-directed medical therapy.",
+        "description": "High likelihood in the original diagnostic context; assessment still requires clinical confirmation.",
+        "recommendation": "Correlate with symptoms, objective cardiac findings and alternative diagnoses before treatment decisions.",
     },
 }
 
@@ -134,8 +136,8 @@ INTERPRETATION = {
 
 def calculate_h2fpef_score(
     bmi: Optional[float] = None,
-    num_antihypertensives: int = 0,
-    af_present: bool = False,
+    num_antihypertensives: Optional[int] = None,
+    af_present: Optional[bool] = None,
     pasp_mmhg: Optional[float] = None,
     age: Optional[float] = None,
     e_e_prime: Optional[float] = None,
@@ -165,8 +167,8 @@ def calculate_h2fpef_score(
     
     Args:
         bmi: Body mass index in kg/m^2
-        num_antihypertensives: Number of antihypertensive medications
-        af_present: Whether atrial fibrillation is present
+        num_antihypertensives: Number of antihypertensive medications; None means unknown
+        af_present: Whether atrial fibrillation is present; None means unknown
         pasp_mmhg: Pulmonary artery systolic pressure in mmHg
         age: Age in years
         e_e_prime: E/e' ratio from echocardiography
@@ -189,7 +191,24 @@ def calculate_h2fpef_score(
     _validate_numeric(pasp_mmhg, "pasp_mmhg")
     _validate_numeric(age, "age")
     _validate_numeric(e_e_prime, "e_e_prime")
+    for flag_name, flag_value in (
+        ("af_present", af_present), ("heavy", heavy), ("hypertensive", hypertensive),
+        ("pulmonary_pressure", pulmonary_pressure), ("elder", elder),
+        ("filling_pressure", filling_pressure),
+    ):
+        if flag_value is not None and not isinstance(flag_value, bool):
+            raise TypeError(f"{flag_name} must be a boolean or None")
 
+    missing_inputs = [
+        name for name, unavailable in (
+            ("bmi", bmi is None and heavy is None),
+            ("num_antihypertensives", num_antihypertensives is None and hypertensive is None),
+            ("af_present", af_present is None),
+            ("pasp_mmhg", pasp_mmhg is None and pulmonary_pressure is None),
+            ("age", age is None and elder is None),
+            ("e_e_prime", e_e_prime is None and filling_pressure is None),
+        ) if unavailable
+    ]
     score = 0
     components = {}
 
@@ -206,7 +225,7 @@ def calculate_h2fpef_score(
     }
     
     # 2 - Hypertensive (>=2 antihypertensives)
-    is_hypertensive = hypertensive if hypertensive is not None else (num_antihypertensives >= 2)
+    is_hypertensive = hypertensive if hypertensive is not None else (num_antihypertensives is not None and num_antihypertensives >= 2)
     if is_hypertensive:
         score += 1
     components["hypertensive"] = {
@@ -218,14 +237,15 @@ def calculate_h2fpef_score(
     }
     
     # F - Fibrillation (AF)
-    if af_present:
+    has_af = bool(af_present)
+    if has_af:
         score += 3
     components["atrial_fibrillation"] = {
         "name": "Atrial Fibrillation",
         "criteria": "Paroxysmal or persistent AF",
         "value": af_present,
-        "met": af_present,
-        "points": 3 if af_present else 0,
+        "met": has_af,
+        "points": 3 if has_af else 0,
     }
     
     # P - Pulmonary pressure (PASP > 35)
@@ -277,6 +297,9 @@ def calculate_h2fpef_score(
     return {
         "score": score,
         "max_score": 9,
+        "complete": not missing_inputs,
+        "missing_inputs": missing_inputs,
+        "probability_note": "Category-level illustrative frequency, not an individual probability estimate. Incomplete inputs can underestimate the score.",
         "category": category,
         "probability": interp["probability"],
         "probability_percent": interp["probability_percent"],
@@ -336,7 +359,7 @@ def get_hfa_peff_algorithm() -> Dict[str, Any]:
     """
     return {
         "name": "HFA-PEFF Diagnostic Algorithm",
-        "description": "European Society of Cardiology HFA-PEFF algorithm for HFpEF diagnosis",
+        "description": "Abbreviated HFA-PEFF reference; not a complete diagnostic implementation",
         "reference": "Pieske B et al. Eur J Heart Fail. 2019;21(10):1169-1186",
         "steps": {
             "step_1": {

@@ -56,8 +56,10 @@ def cmd_calculate(args):
         print(f"    [{marker}] {comp['name']:20s} {comp['criteria']:30s} {status}{val}")
 
     print(f"\n  INTERPRETATION:")
+    if not result["complete"]:
+        print(f"    WARNING: Incomplete inputs ({', '.join(result['missing_inputs'])}); score may be underestimated.")
     print(f"    Category:    {result['label']}")
-    print(f"    Probability: {result['probability_percent']}%")
+    print(f"    Category illustration: {result['probability_percent']}% (not individualized)")
     print(f"    {result['description']}")
     print(f"    Recommendation: {result['recommendation']}")
 
@@ -82,7 +84,7 @@ def cmd_quick(args):
     print("=" * 60)
     print(f"  Score: {result['score']} / {result['max_score']}")
     print(f"  Category: {result['label']}")
-    print(f"  Probability: {result['probability_percent']}%")
+    print(f"  Category illustration: {result['probability_percent']}% (not individualized)")
     print(f"  {result['recommendation']}")
 
     if args.json:
